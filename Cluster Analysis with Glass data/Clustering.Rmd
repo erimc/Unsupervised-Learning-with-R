@@ -1,0 +1,202 @@
+---
+title: "Unsupervised Learning"
+author: "M.Erim Çelen"
+date: "02 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+## K Means Clustering 
+
+```{r packages, eval=FALSE, include=FALSE}
+install.packages("tidyverse") 
+install.packages("corrplot")
+install.packages("gridExtra")
+install.packages("GGally")
+install.packages("cluster")  
+install.packages("factoextra")
+install.packages("magrittr")
+install.packages("dplyr")
+install.packages("magrittr")
+install.packages("tidyr")
+install.packages("NbClust")
+install.packages("ClusterR")
+install.packages("fpc")
+```
+
+```{r libraries, include=FALSE}
+library(corrplot)
+library(gridExtra)
+library(GGally)
+library(cluster)  
+library(factoextra)
+library(magrittr)
+library(dplyr)
+library(tidyr)
+library(NbClust)
+library(ClusterR)
+library(fpc)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+Loading Data
+
+We will be load the glass data.
+```{r LoadData, echo=TRUE}
+data <- read.csv("glass.csv")
+data <- data[,-10] 
+# I am deleting variables because it's labeled.
+```
+
+```{r echo=TRUE}
+head(data)
+```
+Data Analysis
+
+Firstly, I would like to demonstrate an overview of the individual data sets using the summary and str function.
+
+```{r echo=TRUE}
+summary(data)
+```
+
+
+```{r echo=TRUE}
+str(data)
+```
+
+We can see that the all the variables are  numeric so that, we can use these variables for cluster analysis. However, it is better the use only the relevant variable for the Cluster analysis.
+
+In order to see more visualized data we plot the histogram of each element.
+
+```{r echo=FALSE}
+data%>%
+  gather(attributes, value, 1:9) %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(fill = 'lightblue4', color = 'ivory4') +
+  facet_wrap(~attributes, scales = 'free_x') +
+  labs(x="Values", y="Frequency") +
+  theme_bw()
+```
+
+To understand the relationships between each elements I build correlation matrix.
+```{r echo=TRUE}
+corrplot(cor(data), type = 'upper', method = 'number', tl.cex = 0.9)
+```
+
+A strong relationship between RI and Ca was seen. I will create a model to show the relationship between these variables by fitting a linear equation.
+
+```{r echo=TRUE}
+ggplot(data, aes(x = RI, y= Ca)) +
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE) +
+  theme_bw()
+```
+
+In order to prepare our data for clustering, we need our data to be scaled. We can scale our data by standard deviation and mean and also using scale function.
+```{r echo=TRUE}
+dataNorm <- as.data.frame(scale(data))
+head(dataNorm)
+```
+
+Computing k-means clustering in R 
+We use eclust function from the factoextra package to compute k means clustering with two clusters(k=2) by euclidean metric.
+
+The following code shows the cluster we created.
+
+```{r echo=TRUE}
+data_cluster <- eclust(dataNorm, "kmeans", hc_metric="euclidean",k=2)
+```
+
+
+```{r echo=TRUE}
+attributes(data_cluster)
+```
+
+```{r echo=TRUE}
+data_cluster$cluster
+```
+
+```{r echo=TRUE}
+data_cluster$centers
+```
+
+```{r echo=TRUE}
+data_cluster$size
+```
+
+```{r echo=TRUE}
+data_cluster$betweenss
+```
+
+```{r echo=TRUE}
+data_cluster$withinss
+```
+
+```{r echo=TRUE}
+data_cluster$totss
+```
+
+Since the k values should be set beforehand, it's advisable to have different k values. It gives us different outcomes to analyize.
+```{r echo=TRUE}
+data_cluster3 <- eclust(dataNorm, "kmeans", hc_metric="euclidean",k=3)
+
+data_cluster4 <- eclust(dataNorm, "kmeans", hc_metric="euclidean",k=4)
+
+data_cluster5 <- eclust(dataNorm, "kmeans", hc_metric="euclidean",k=5)
+
+```
+
+
+Finding Optimal Clusters
+
+We are going to use 3 approaches in order to find the optimal number of clusters.
+
+First we calculated the Elbow Method.
+```{r echo=TRUE}
+fviz_nbclust(x = dataNorm,FUNcluster = kmeans, method = 'wss' )
+```
+
+And then we continue with the Silhouette Method.
+```{r echo=TRUE}
+fviz_nbclust(x = dataNorm,FUNcluster = kmeans, method = 'silhouette' )
+```
+
+Lastly we will use the method call Gap-static in order find optimal value of k.
+
+```{r echo=TRUE}
+fviz_nbclust(x = dataNorm,FUNcluster = kmeans, method = 'gap_stat' )
+```
+
+
+We can also Automaticly select the number of clusters by using pamk function.
+
+```{r echo=TRUE}
+pamk.best<-pamk(dataNorm, krange=2:10,criterion="asw", usepam=TRUE, scaling=FALSE, alpha=0.001, diss=inherits(dataNorm, "dist"), critout=FALSE)
+class(pamk.best)
+
+pamk.best
+```
+
+The elbow method and silhoutte method suggesting 2 as the number of optimal clusters, now we can demonstrate the final analyisis with using 2 clusters.
+
+
+We can use the following code to visualize our results.
+```{r echo=TRUE}
+fviz_cluster(data_cluster, data = dataNorm)
+```
+
+It's suggested that while conducting descriptive statistics we can obtain the clusters and include them to the raw data.
+```{r echo=TRUE}
+dataNorm %>% 
+  mutate(Cluster = data_cluster$cluster) %>%
+  group_by(Cluster) %>%
+  summarize_all('median')
+```
+
+
+
+

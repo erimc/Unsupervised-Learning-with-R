@@ -1,0 +1,289 @@
+---
+title: "Unsupervised Learning"
+author: "M.Erim Çelen"
+date : "02 2020"
+output: html_document
+---
+
+## Principal Compenent Analysis(PCA)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, eval=FALSE, include=FALSE}
+install.packages("gplots")
+install.packages("plotly")
+install.packages("gridExtra")
+install.packages("grid")
+install.packages("tidyverse")
+install.packages("robustHD")
+install.packages("psych")
+install.packages("dplyr")
+install.packages("ggfortify")
+```
+Loading Packages
+```{r include=FALSE}
+library(robustHD) 
+library(tidyverse) 
+library(grid)  
+library(gridExtra) 
+library(plotly) 
+library(dplyr)
+library(ggfortify)
+library(gplots)
+library(psych)
+```
+Data Preparation 
+
+The data set contains 683 observations of cancer cells with 11 attributes. For the purpose of this analysis ID and Class, variables will not be used, the selected attributes are Clump Thickness, Cell Size, Cell Shape, Adhesion, Epithelial, Bare Nuclei, Chromatin, Nucleoli, Mitoses.
+
+Loading sample data
+```{r}
+data.first <- read.csv("http://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data", header = F)
+names1 = c('ID','Clump.Thickness','Cell.Size','Cell.Shape','Adhesion','Epithelial',
+          'Bare.Nuclei','Chromatin','Nucleoli','Mitoses','Class')
+names(data.first) = names1
+
+```
+
+
+```{r}
+data.first = subset(data.first, Bare.Nuclei!='?')
+data.first$Bare.Nuclei = as.integer(data.first$Bare.Nuclei)
+data <- data.first[,2:10]
+str(data)
+```
+
+Standardization
+
+In order to apply PCA first, we need to standardize our data set so that each variable has the same scale. This is done by subtracting every mean in each column. The following data is scaled.
+
+```{r}
+scaled.data <- apply(data, 2, scale)
+head(scaled.data)
+```
+
+Creating a Covariance Matrix
+
+This matrix will help us to understand the relationships between variables whether they are positively or negatively related or even no relation. The results show that almost all variables are positively correlated however, Chromatin is negatively correlated with Bare Nuclei and Mitoses, also Bare Nuclei and Adhesion have a negative relationship.
+```{r}
+cov.data <- cov(scaled.data)
+```
+In order to get PCA as a next step, we calculated Eigenvectors and Eigenvalues.
+
+```{r}
+eigen.data <- eigen(cov.data)
+head(eigen.data)
+```
+
+Main Components
+
+Since R calculated Eigenvectors in the negative direction, first we multiplied Eigenvalues with -1. And defined our data as loadings.data.
+```{r}
+loadings.data <- -eigen.data$vectors
+row.names(loadings.data) <- c("Clump.Thickness","Cell.Size","Cell.Shape","Adhesion","Epithelial","Bare.Nuclei","Chromatin","Nucleoli","Mitoses")
+colnames(loadings.data) <- c("PC1","PC2","PC3","PC4","PC5","PC6","PC7","PC8","PC9")
+loadings.data
+```
+Looking at the principal component table we can say that PC1 is equally affected by each variable however Cell size and Cell shape have slightly more effect than others.
+
+PC2 is negatively effected by Bare nuclei and positively effected by Mitoses. These results reveal that the second component decreases as Bare nuclei increase yet that it increases as Mitoses increases. These results are also supported by the covariance matrix.
+
+By looking at the third column the most negatively affected attribute is Mitoses where Nucleoli is the least affected attribute.
+
+The fourth principal component has the highest negatively effected value as Clump thickness(-0.89).
+
+PC5 is negatively effected by attribute Epithelial where Adhesion is the positively affected variable.
+
+Nucleoli is the most negatively correlated variable in PC6.
+
+Chromatin is the most negatively correlated variable in PC7 where Adhesion has a positive effect on PC7.
+
+Cell shape has the biggest positive effect on PC8.
+
+Cell size has the biggest positive effect on PC9 where Bare nuclei have almost no effect on PC9.
+
+The following heatmap shows how variables are related to Principal Components where the relationship increases as the color lighten. The heatmap confirms the assumptions stated below.
+
+
+```{r}
+loadings.pc <- abs(loadings.data)
+```
+
+```{r}
+heatmap <- heatmap.2(loadings.pc, 
+                              dendrogram='none', 
+                              Rowv = FALSE, 
+                              Colv = FALSE, 
+                              trace = 'none',
+                              main = "Principal Component Values",
+                              margins = c(5,10),
+                              cexRow = 1, 
+                              cexCol = 1)
+```
+
+Principal Component Scores
+
+In order to form a linear combination with scaled data and loadings data, we calculated principal component scores for each observation. 
+
+PC1(pc1.ob1) and PC2(pc2.ob1) are calculated for the first observation. 
+```{r}
+scaled.data[1,]
+```
+
+```{r}
+loadings.data[,1:2]
+```
+
+
+```{r}
+ob1 <- c(0.3108812,0.3950105,0.3901838,0.3367502,0.3498809,0.2273349,0.3540839,0.3510963,0.2427624)
+pc_1 <- c(0.1977598,-0.7016978,-0.7412304,-0.6388973,-0.5552016,-0.5655993,-0.1816940,-0.6124785,-0.3481446)
+
+pc1.ob1 <- sum(ob1*pc_1)
+pc1.ob1
+
+```
+
+
+```{r}
+ob1 <- c(0.3108812,0.3950105,0.3901838,0.3367502,0.3498809,0.2273349,0.3540839,0.3510963,0.2427624)
+pc_2 <- c(-0.1143272940,-0.0003807321,-0.0310713058,0.1977068657,0.1254078557,-0.7836138121,-0.0407963887,-0.0180151523,0.5613457636)
+
+pc2.ob1 <- sum(ob1*pc_2)
+pc2.ob1
+
+```
+
+Observation one has PC1 score of about -1.406 and PC2 score of about 0.07. These values are the same as in the PC score matrix below.
+
+```{r}
+PC.Matrix <- as.matrix(scaled.data) %*% loadings.data
+colnames(PC.Matrix) <- c("PC1", "PC2", "PC3", "PC4", "PC5","PC6","PC7","PC8", "PC9")
+```
+
+The following data frame shows the PC scores for each observation.
+```{r}
+PC <- as.data.frame(PC.Matrix)
+head(PC)
+```
+In order to decide which principal component will be used, we calculated the explained variance. The high score in explained variance shows the significance level and that should be selected as a principal component.
+
+Based on the below results, the first component is the most significant.
+
+```{r}
+PVE <- eigen.data$values / sum(eigen.data$values)
+round(PVE, 2)
+```
+
+In the following code, I will show how the first and second principal components are plotted. Color bar measures Cell size.
+
+Plots
+
+
+```{r}
+f <- list(family = "Courier New, monospace", size = 18, color = "black")
+
+x1 <- list(title = "PC1", titlefont = list(size = 10), range = c(-5,5))
+y1 <- list(title = "PC2", titlefont = list(size = 10), range = c(-5,5))
+xx1 <- list(title = "PC3", titlefont = list(size = 10), range = c(-5,5))
+
+a <- list(text = "PC 1 and 2",
+          font = f,
+          xref = "paper",
+          yref = "paper",
+          yanchor = "bottom",
+          xanchor = "center",
+          align = "center",
+          x = 0.5,
+          y = 1,
+          showarrow = FALSE)
+
+b <- list(text = "PC 2 and 3",
+          font = f,
+          xref = "paper",
+          yref = "paper",
+          yanchor = "bottom",
+          xanchor = "center",
+          align = "center",
+          x = 0.5,
+          y = 1,
+          showarrow = FALSE)
+
+c <- list(text = "PC 1 and 3",
+          font = f,
+          xref = "paper",
+          yref = "paper",
+          yanchor = "bottom",
+          xanchor = "center",
+          align = "center",
+          x = 0.5,
+          y = 1,
+          showarrow = FALSE)
+
+
+pc1_2 <- plot_ly(PC, 
+                 x = ~PC1, 
+                 y = ~PC2, 
+                 type = 'scatter', 
+                 mode = 'markers', 
+                 color = data$Adhesion, 
+                 colors = "BuGn", 
+                 hoverinfo = 'text', 
+                 text = ~paste(data.first$ID)) %>%
+                layout(annotations = a, 
+                       xaxis = x1, 
+                       yaxis = y1, 
+                       showlegend = FALSE)
+pc2_3 <- plot_ly(PC, 
+                 x = ~PC2, 
+                 y = ~PC3, 
+                 type = 'scatter', 
+                 mode = 'markers', 
+                 color = data$Adhesion, 
+                 colors = "BuPu", 
+                 hoverinfo = 'text', 
+                 text = ~paste(data.first$ID)) %>%
+                layout(annotations = b, 
+                       xaxis = y1, 
+                       yaxis = xx1, 
+                       showlegend = FALSE)
+
+
+
+pc1_3 <- plot_ly(PC, 
+                 x = ~PC1, 
+                 y = ~PC3, 
+                 type = 'scatter', 
+                 mode = 'markers', 
+                 color = data$Adhesion, 
+                 colors = "OrRd", 
+                 hoverinfo = 'text', 
+                 text = ~paste(data.first$ID)) %>%
+                layout(annotations = c, 
+                       xaxis = x1, 
+                       yaxis = xx1, 
+                       showlegend = FALSE)
+
+```
+
+```{r echo=TRUE}
+subplot(pc1_2, pc2_3, pc1_3, titleX = TRUE, titleY = TRUE)
+```
+PC1 and 2 
+
+In the first graph, PC1 and 2, the first principal component is effected by Cell size and Cell shape Because these values were positive, each increase of x (PC1) coincides with a increase in these attributes.
+
+Second principal component is most effected by Bare nucluei and suggest that an increase in y(PC2) indicates a decrease in height.
+
+The first two principal components were also effected considerably by Adhesion. This is verified by the colorings of the data points, as there is an evident relationship between the x and y values and the Adhesion value.
+
+When we look at the specific observations such as ID 1320077 and ID 1103722 we observe them on the left side with a light color which means they both have low Adhesion value and low PC1 value which states low cell.size and cell.shape value.
+
+The data set also confirms these values. And the rest of the graphics and data could interpret as the above-mentioned way.
+
+3D
+These previous graphs are now combined into an interactive three-dimensional graph, shown below. As with the two-dimensional plots, the colorbar meaures Adhesion. Together, these three variables explain 78% of the total variance.
+
+

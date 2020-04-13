@@ -1,0 +1,161 @@
+---
+title: "Unsupervised Learning"
+author: "M.Erim Çelen"
+date : "02 2020"
+output: html_document
+---
+## Association Rules
+
+
+In order to find Associations among products we will be using the groceries data.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, eval=FALSE, include=FALSE}
+install.packages("arules")
+install.packages("arulesViz")
+```
+
+```{r include=FALSE}
+library(arules)
+library(arulesViz)
+```
+
+Let's load the groceries data.
+```{r}
+data(Groceries)
+```
+Groceries data has 9835 transactions and 169 items. There are 33 columns in the data set.
+
+Let's explore the data.
+
+```{r}
+summary(Groceries)
+```
+We can see that the most items in the dataset are:
+Whole milk
+Other vegatables
+Rolls/buns
+Soda
+Yogurt
+
+```{r}
+inspect(Groceries[1:5])
+```
+
+```{r}
+LIST(head(Groceries))
+```
+
+```{r}
+itemFrequencyPlot(Groceries,topN=20,type="absolute")
+```
+
+After looking at the data we can apply Apriori algorithm to data set.. 
+
+Let's say we want to find out which items are sold three times a day, our support level will be 90/9835=0.009.
+
+
+```{r}
+rules <- apriori(Groceries, parameter=list(supp=0.009, conf=0.35)) 
+```
+We can see that there are 120 rules have been generated.
+
+```{r}
+summary(rules)
+```
+
+Summary functions show us 2 items are in 52 rules and 3 items are in 68 rules.
+
+```{r}
+rules.sup <- sort(rules, by="support", decreasing=TRUE) 
+inspect(rules.sup[1:5])
+```
+
+We can also see these rules by lift, count and confidence.
+
+The highest support level belongs to other vegetables let's see what forces make people buying other vegetables.
+```{r}
+rules.othervegetables <- apriori(data=Groceries, parameter=list(supp = 0.009,conf = 0.30), 
+appearance=list(default = "lhs", rhs = "other vegetables"), control = list(verbose=F)) 
+
+rules.othervegetables.byconf <- sort(rules.othervegetables, by ="confidence", decreasing = TRUE)
+inspect(head(rules.othervegetables.byconf))
+```
+and oppositely if we want to see if we have other vegetables in a basket what more do we buy?
+```{r}
+rules.othervegetables <- apriori(data=Groceries, parameter=list(supp=0.009,conf = 0.20), 
+appearance=list(default="rhs",lhs="other vegetables"), control=list(verbose=F)) 
+
+rules.othervegetables.byconf<-sort(rules.othervegetables, by="confidence", decreasing=TRUE)
+inspect(head(rules.othervegetables.byconf))
+```
+
+
+```{r}
+plot(rules, method="grouped")  
+```
+
+We can also apply Apriori algorithm to closed frequent itemsets.
+
+```{r}
+groceries.closed <- apriori(Groceries, parameter = list(target = "closed frequent itemsets", support=0.10))
+
+```
+
+
+```{r}
+inspect(groceries.closed)
+```
+
+```{r}
+class(groceries.closed)
+```
+
+```{r}
+is.closed(groceries.closed)  
+```
+
+We can also check the significance of the algorithm.
+ 
+```{r}
+is.significant(rules.othervegetables, Groceries)
+```
+
+
+```{r}
+is.maximal(rules.othervegetables)
+```
+
+
+```{r}
+is.redundant(rules.othervegetables)
+```
+
+```{r}
+inspect(rules.othervegetables[is.redundant(rules.othervegetables)==FALSE])
+```
+
+
+We can also find Superset and subset in transactions.
+
+```{r}
+is.subset(rules.othervegetables, sparse = FALSE)
+```
+
+
+```{r}
+is.superset(rules.othervegetables, sparse = FALSE)
+```
+
+Jaccard Index
+
+```{r}
+jaccard <- Groceries[,itemFrequency(Groceries)>0.1]
+
+dissimilarity(jaccard, which="items") 
+```
+
+We can interpret these results as water and soda are very dissimilar in %89 they don't overlap.
